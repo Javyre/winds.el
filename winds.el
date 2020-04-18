@@ -28,20 +28,18 @@
 
 ;;; Commentary:
 ;;
-;; * Winds.el
+;; Window configuration switcher for multiple workspaces
 ;;
-;;   Window configuration switcher for multiple workspaces
+;; winds.el is very similar to eyebrowse and other window config
+;; switchers, but allows for having mutiple "workspaces" grouping sets
+;; of window config slots.
 ;;
-;;   winds.el is very similar to eyebrowse and other window config
-;;   switchers, but allows for having mutiple "workspaces" grouping sets
-;;   of window config slots.
+;; This small package was started because I tend to have multiple
+;; unrelated projects open at once, and need to keep them open. I do
+;; not want to cycle through unrelated window configs to get to what I
+;; want and I want to keep only one fullscreen emacs frame open.
 ;;
-;;   This small package was started because I tend to have multiple
-;;   unrelated projects open at once, and need to keep them open. I do
-;;   not want to cycle through unrelated window configs to get to what I
-;;   want and I want to keep only one fullscreen emacs frame open.
-;;
-;;   (This package has basic support for multiple frames)
+;; (This package has basic support for multiple frames)
 ;;
 ;; * Install
 ;;
