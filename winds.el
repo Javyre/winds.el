@@ -81,6 +81,28 @@
 ;;   (global-set-key (kbd "C->")    'winds-cfg-prev)
 ;;   (global-set-key (kbd "C-\\")   'winds-cfg-close)
 ;;   #+END_SRC
+;;
+;;   To disable the status message when changing window configs:
+;;
+;;   #+BEGIN_SRC elisp
+;;   (setq winds-display-status-msg nil)
+;;   #+END_SRC
+;;
+;;   For a simple mode-line indicator, add this to your ~mode-line-format~:
+;;
+;;   #+BEGIN_SRC elisp
+;;     (:eval (format "%s|%s " (winds-get-cur-ws) (winds-get-cur-cfg)))
+;;   #+END_SRC
+;;
+;;   For example (dumb example):
+;;
+;;   #+BEGIN_SRC elisp
+;;     (setq mode-line-format
+;;           `(,mode-line-format
+;;             (:eval (format "%s|%s "
+;;                            (winds-get-cur-ws)
+;;                            (winds-get-cur-cfg)))))
+;;   #+END_SRC
 
 ;;; Change Log:
 ;;; Code:
