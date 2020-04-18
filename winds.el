@@ -41,6 +41,9 @@
 ;;
 ;; (This package has basic support for multiple frames)
 ;;
+;; * Screenshot
+;;   [[file:scrot.png]]
+;;
 ;; * Install
 ;;
 ;;   This package has not yet been submitted to Melpa. I have no need
