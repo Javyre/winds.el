@@ -1,0 +1,55 @@
+#+TITLE: Winds.el
+#+AUTHOR: Javier A. Pollak
+
+* Winds.el
+
+  Window configuration switcher for multiple workspaces
+
+  winds.el is very similar to eyebrowse and other window config
+  switchers, but allows for having mutiple "workspaces" grouping sets
+  of window config slots.
+
+  This small package was started because I tend to have multiple
+  unrelated projects open at once, and need to keep them open. I do
+  not want to cycle through unrelated window configs to get to what I
+  want and I want to keep only one fullscreen emacs frame open.
+
+  (This package has basic support for multiple frames)
+
+* Install
+
+  This package has not yet been submitted to Melpa. I have no need
+  for it to be on Melpa as I use =straight.el= and I made this package
+  to scratch my own itch.
+
+  If anyone thinks this would be useful to them please let me know and
+  I'll be glad to submit it to Melpa.
+
+  #+BEGIN_SRC elisp
+  (use-package winds
+    :straight (winds :type git :host github :repo "Javyre/winds.el"))
+  #+END_SRC
+
+* Getting Started
+
+  To get started, bind some keys to ~winds-goto~:
+
+  #+BEGIN_SRC elisp
+  (global-set-key (kbd "M-1") (lambda () (interactive) (winds-goto :ws 1)))
+  (global-set-key (kbd "M-2") (lambda () (interactive) (winds-goto :ws 2)))
+  (global-set-key (kbd "M-3") (lambda () (interactive) (winds-goto :ws 3)))
+  (global-set-key (kbd "C-c 1") (lambda () (interactive) (winds-goto :cfg 1)))
+  (global-set-key (kbd "C-c 2") (lambda () (interactive) (winds-goto :cfg 2)))
+  (global-set-key (kbd "C-c 3") (lambda () (interactive) (winds-goto :cfg 3)))
+  #+END_SRC
+
+  You might also want to bind ~next~/~prev~ and ~close~
+
+  #+BEGIN_SRC elisp
+  (global-set-key (kbd "C-c <")  'winds-next)
+  (global-set-key (kbd "C-c >")  'winds-prev)
+  (global-set-key (kbd "C-c \\") 'winds-close)
+  (global-set-key (kbd "C-<")    'winds-cfg-next)
+  (global-set-key (kbd "C->")    'winds-cfg-prev)
+  (global-set-key (kbd "C-\\")   'winds-cfg-close)
+  #+END_SRC
