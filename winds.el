@@ -140,7 +140,7 @@ Set to `nil` to not run any initialization"
   (let ((ws (gethash wsid *winds-workspaces*)))
     (unless ws
       (setf ws (make-winds-workspace :cfgs (make-hash-table :test 'eql)
-                                     :last-sel 0))
+                                     :last-sel winds-default-cfg))
       (puthash wsid ws *winds-workspaces*))
     ws))
 
