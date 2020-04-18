@@ -3,7 +3,7 @@
 
 Window configuration switcher for multiple workspaces
 
-winds.el is very similar to eyebrowse and other window config
+winds.el is very similar to [[https://github.com/wasamasa/eyebrowse/][eyebrowse]] and other window config
 switchers, but allows for having mutiple "workspaces" grouping sets
 of window config slots.
 
