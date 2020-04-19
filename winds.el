@@ -135,7 +135,7 @@
           (ignore w c)
           (delete-other-windows)
           (switch-to-buffer "*scratch*")))
-  "The hook called to create a new layout upon opening a new window configuration slot
+  "Hook called to create a new layout upon opening a new window config slot.
 
 The hook receives two parameters: the window-id and cfg-id of the new slot
 Set to `nil` to not run any initialization"
@@ -158,13 +158,16 @@ Set to `nil` to not run any initialization"
   (or (frame-parameter frame 'winds--cur-cfg) winds-default-cfg))
 
 (defun winds--set-cur-ws (frame value)
+  "Set the currently selected workspace id in FRAME or the current frame to VALUE."
   (set-frame-parameter frame 'winds--cur-ws value))
 (defun winds--set-cur-cfg (frame value)
+  "Get the currently selected window config slot id in FRAME or the current frame to VALUE."
   (set-frame-parameter frame 'winds--cur-cfg value))
 
 ;; Private
 
 (defun winds--get-or-create-ws (wsid)
+  "Get or create workspace in slot WSID."
   (let ((ws (gethash wsid winds-*workspaces*)))
     (unless ws
       (setf ws (make-winds-workspace :cfgs (make-hash-table :test 'eql)
@@ -173,6 +176,7 @@ Set to `nil` to not run any initialization"
     ws))
 
 (defun winds--save-cfg-if-empty ()
+  "Save the current window config to the current slot if slot is empty."
   (let* ((wsid   (winds-get-cur-ws))
          (cfgid  (winds-get-cur-cfg))
          (ws    (winds--get-or-create-ws wsid))
@@ -181,9 +185,11 @@ Set to `nil` to not run any initialization"
       (winds-save-cfg :ws wsid :cfg cfgid))))
 
 (defun winds--get-wsids ()
+  "Get the current set of workspace ids."
   (cl-loop for k being the hash-keys of winds-*workspaces* collect k))
 
 (cl-defun winds--get-cfgids (&optional (wsid (winds-get-cur-ws)))
+  "Get the current set of window config ids."
   (let ((ws (winds--get-or-create-ws wsid)))
     (cl-loop for k being the hash-keys of (winds-workspace-cfgs ws) collect k)))
 
