@@ -1,4 +1,4 @@
-;;; winds.el --- Window configuration switcher for multiple workspaces                         -*- lexical-binding: t; -*-
+;;; winds.el --- Window configuration switcher grouped by workspaces                          -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2020 Javier A. Pollak
 
@@ -28,7 +28,7 @@
 
 ;;; Commentary:
 ;;
-;; Window configuration switcher for multiple workspaces
+;; Window configuration switcher grouped by workspaces
 ;;
 ;; winds.el is very similar to [[https://github.com/wasamasa/eyebrowse/][eyebrowse]] and other window config
 ;; switchers, but allows for having mutiple "workspaces" grouping sets

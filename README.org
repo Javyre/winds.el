@@ -1,7 +1,7 @@
 #+TITLE: Winds.el
 #+AUTHOR: Javier A. Pollak
 
-Window configuration switcher for multiple workspaces
+Window configuration switcher grouped by workspaces
 
 winds.el is very similar to [[https://github.com/wasamasa/eyebrowse/][eyebrowse]] and other window config
 switchers, but allows for having mutiple "workspaces" grouping sets
