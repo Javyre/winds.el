@@ -35,9 +35,9 @@
 ;; of window config slots.
 ;;
 ;; This small package was started because I tend to have multiple
-;; unrelated projects open at once, and need to keep them open. I do
+;; unrelated projects open at once, and need to keep them open.  I do
 ;; not want to cycle through unrelated window configs to get to what I
-;; want and I want to keep only one fullscreen emacs frame open.
+;; want and I want to keep only one fullscreen Emacs frame open.
 ;;
 ;; (This package has basic support for multiple frames)
 ;;
@@ -46,7 +46,7 @@
 ;;
 ;; * Install
 ;;
-;;   This package has not yet been submitted to Melpa. I have no need
+;;   This package has not yet been submitted to Melpa.  I have no need
 ;;   for it to be on Melpa as I use =straight.el= and I made this package
 ;;   to scratch my own itch.
 ;;
@@ -117,14 +117,14 @@
   :prefix "winds-")
 
 (defcustom winds-default-ws 1
-  "Defalut selected workspace"
+  "Defalut selected workspace."
   :group 'winds)
 (defcustom winds-default-cfg 1
-  "Default selected window config slot"
+  "Default selected window config slot."
   :group 'winds)
 
 (defcustom winds-display-status-msg t
-  "Whether to display a status message upon switching window config"
+  "Whether to display a status message upon switching window config."
   :type 'bool :group 'winds)
 
 (defcustom winds-init-cfg
@@ -145,10 +145,10 @@ Set to `nil` to not run any initialization"
 (defvar *winds-workspaces* (make-hash-table :test 'eql))
 
 (defun winds-get-cur-ws (&optional frame)
-  "Get the currently selected workspace id"
+  "Get the currently selected workspace id in FRAME or the current frame."
   (or (frame-parameter frame 'winds--cur-ws) winds-default-ws))
 (defun winds-get-cur-cfg (&optional frame)
-  "Get the currently selected window config slot id"
+  "Get the currently selected window config slot id in FRAME or the current frame."
   (or (frame-parameter frame 'winds--cur-cfg) winds-default-cfg))
 
 (defun winds--set-cur-ws (frame value)
@@ -175,15 +175,16 @@ Set to `nil` to not run any initialization"
       (winds-save-cfg :ws wsid :cfg cfgid))))
 
 (defun winds--get-wsids ()
-  (hash-table-keys *winds-workspaces*))
+  (cl-loop for k being the hash-keys of *winds-workspaces* collect k))
 
 (cl-defun winds--get-cfgids (&optional (wsid (winds-get-cur-ws)))
   (let ((ws (winds--get-or-create-ws wsid)))
-    (hash-table-keys (winds-workspace-cfgs ws))))
+    (cl-loop for k being the hash-keys of (winds-workspace-cfgs ws) collect k)))
 
 ;; Public
 
 (defun winds-display-status-msg ()
+  "Display a status message in the echo area with the current ws id and cfg id."
   (interactive)
   (let* ((wsids  (sort (winds--get-wsids) #'<))
          (cfgids (sort (winds--get-cfgids) #'<))
@@ -255,7 +256,7 @@ Set to `nil` to not run any initialization"
 
 ;;;###autoload
 (defun winds-next ()
-  "Go to next workspace slot"
+  "Go to next workspace slot."
   (interactive)
   (winds--save-cfg-if-empty)
   (let* ((wsids    (sort (winds--get-wsids) #'<))
@@ -267,7 +268,7 @@ Set to `nil` to not run any initialization"
 
 ;;;###autoload
 (defun winds-prev ()
-  "Go to previous workspace slot"
+  "Go to previous workspace slot."
   (interactive)
   (winds--save-cfg-if-empty)
   (let* ((wsids    (sort (winds--get-wsids) #'>))
@@ -279,7 +280,7 @@ Set to `nil` to not run any initialization"
 
 ;;;###autoload
 (defun winds-cfg-next ()
-  "Go to next window config slot"
+  "Go to next window config slot."
   (interactive)
   (winds--save-cfg-if-empty)
   (let* ((cfgids   (sort (winds--get-cfgids) #'<))
@@ -291,7 +292,7 @@ Set to `nil` to not run any initialization"
 
 ;;;###autoload
 (defun winds-cfg-prev ()
-  "Go to previous window config slot"
+  "Go to previous window config slot."
   (interactive)
   (winds--save-cfg-if-empty)
   (let* ((cfgids   (sort (winds--get-cfgids) #'>))
@@ -303,9 +304,12 @@ Set to `nil` to not run any initialization"
 
 ;;;###autoload
 (defun winds-close (wsid)
-  "Close workspace slot and switch to nearest slot or winds-default-ws
+  "Close workspace slot WSID.
 
-If interactive, you are prompted for an id or blank to close current ws"
+Close workspace slot WSID and switch to nearest slot or `winds-default-ws'
+ if none open.  If interactive, you are prompted for an id or blank to close
+ current ws."
+
   (interactive (list (read-from-minibuffer "Workspace to close (blank for current): "
                                            nil nil t nil
                                            (format "%s" (winds-get-cur-ws)))))
@@ -320,9 +324,12 @@ If interactive, you are prompted for an id or blank to close current ws"
 
 ;;;###autoload
 (defun winds-cfg-close (cfgid)
-  "Close window config slot and switch to nearest slot or winds-default-cfg
+  "Close window config slot CFGID.
 
-If interactive, you are prompted for an id or blank to close current cfg"
+Close window config slot CFGID and switch to nearest slot or `winds-default-cfg'
+ if none open.  If interactive, you are prompted for an id or blank to close
+ current cfg"
+
   (interactive (list (read-from-minibuffer "Window config to close (blank for current): "
                                            nil nil t nil
                                            (format "%s" (winds-get-cur-cfg)))))
