@@ -4,7 +4,7 @@
 Window configuration switcher grouped by workspaces
 
 winds.el is very similar to [[https://github.com/wasamasa/eyebrowse/][eyebrowse]] and other window config
-switchers, but allows for having mutiple "workspaces" grouping sets
+switchers, but allows for having multiple "workspaces" grouping sets
 of window config slots.
 
 This small package was started because I tend to have multiple

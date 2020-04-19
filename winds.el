@@ -31,7 +31,7 @@
 ;; Window configuration switcher grouped by workspaces
 ;;
 ;; winds.el is very similar to [[https://github.com/wasamasa/eyebrowse/][eyebrowse]] and other window config
-;; switchers, but allows for having mutiple "workspaces" grouping sets
+;; switchers, but allows for having multiple "workspaces" grouping sets
 ;; of window config slots.
 ;;
 ;; This small package was started because I tend to have multiple
@@ -117,7 +117,7 @@
   :prefix "winds-")
 
 (defcustom winds-default-ws 1
-  "Defalut selected workspace."
+  "Default selected workspace."
   :type 'integer
   :group 'winds)
 (defcustom winds-default-cfg 1
@@ -255,7 +255,7 @@ Set to `nil` to not run any initialization"
     ;; Return to last selected cfg for selected ws
     (unless cfgid (setf cfgid (winds-workspace-last-sel ws)))
 
-    ;; Save crrent cfg before leaving
+    ;; Save current cfg before leaving
     (when do-save (winds-save-cfg))
 
     (winds--set-cur-ws nil wsid)
