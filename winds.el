@@ -8,7 +8,7 @@
 ;; Keywords: convenience
 ;; Version: 1.0.0
 ;; Homepage: https://github.com/Javyre/winds.el
-;; Package-Requires: (cl-lib)
+;; Package-Requires: ((emacs "24.3"))
 
 ;; This file is not part of GNU Emacs.
 
@@ -148,7 +148,7 @@ Set to `nil` to not run any initialization"
 (cl-defstruct winds-workspace
   cfgs      ;; window config slots hashtable
   last-sel) ;; last selected slot id
-(defvar *winds-workspaces* (make-hash-table :test 'eql))
+(defvar winds-*workspaces* (make-hash-table :test 'eql))
 
 (defun winds-get-cur-ws (&optional frame)
   "Get the currently selected workspace id in FRAME or the current frame."
@@ -165,11 +165,11 @@ Set to `nil` to not run any initialization"
 ;; Private
 
 (defun winds--get-or-create-ws (wsid)
-  (let ((ws (gethash wsid *winds-workspaces*)))
+  (let ((ws (gethash wsid winds-*workspaces*)))
     (unless ws
       (setf ws (make-winds-workspace :cfgs (make-hash-table :test 'eql)
                                      :last-sel winds-default-cfg))
-      (puthash wsid ws *winds-workspaces*))
+      (puthash wsid ws winds-*workspaces*))
     ws))
 
 (defun winds--save-cfg-if-empty ()
@@ -181,7 +181,7 @@ Set to `nil` to not run any initialization"
       (winds-save-cfg :ws wsid :cfg cfgid))))
 
 (defun winds--get-wsids ()
-  (cl-loop for k being the hash-keys of *winds-workspaces* collect k))
+  (cl-loop for k being the hash-keys of winds-*workspaces* collect k))
 
 (cl-defun winds--get-cfgids (&optional (wsid (winds-get-cur-ws)))
   (let ((ws (winds--get-or-create-ws wsid)))
@@ -321,7 +321,7 @@ Close workspace slot WSID and switch to nearest slot or `winds-default-ws'
   (let ((wsids (sort (winds--get-wsids) #'<)))
     (if (memql wsid wsids)
         (progn
-          (remhash wsid *winds-workspaces*)
+          (remhash wsid winds-*workspaces*)
           (when (eql wsid (winds-get-cur-ws))
             (let ((goto (car (cl-remove-if (lambda (e) (eql wsid e)) wsids))))
               (winds-goto :ws (or goto winds-default-ws) :do-save nil))))
