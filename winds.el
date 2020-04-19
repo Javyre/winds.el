@@ -237,9 +237,21 @@ Set to `nil` to not run any initialization"
 ;;;###autoload
 (cl-defun winds-save-cfg (&key ((:ws  wsid)  (winds-get-cur-ws))
                                ((:cfg cfgid) (winds-get-cur-cfg)))
-  "Save current window configuration into workspace ws, config cfg"
-  ;; TODO: impl interactive
-  (interactive)
+  "Save current window configuration into workspace ws, config cfg.
+
+Call interactively to be prompted for a workspace and window config to save to.
+
+Call interactively with a prefix argument to save to the current window config slot
+ in the current workspace."
+
+  (interactive (unless current-prefix-arg
+                 (list :ws (read-from-minibuffer
+                            "Workspace to save window config to (blank for current): "
+                            nil nil t nil (format "%s" (winds-get-cur-ws)))
+                       :cfg (read-from-minibuffer
+                             "Window config slot to save to (blank for current): "
+                             nil nil t nil (format "%s" (winds-get-cur-cfg))))))
+
   (let* ((ws   (winds--get-or-create-ws wsid))
          (cfgs (winds-workspace-cfgs ws)))
     (setf (winds-workspace-last-sel ws) cfgid)
@@ -249,9 +261,20 @@ Set to `nil` to not run any initialization"
 (cl-defun winds-goto (&key ((:ws wsid) (winds-get-cur-ws))
                            ((:cfg cfgid) nil)
                            (do-save t))
-  "Switch to another workspace and/or window config slot"
-  ;; TODO: impl interactive
-  (interactive)
+  "Switch to another workspace and/or window config slot.
+
+Call interactively to be prompted for a workspace and window config to swtich to.
+
+Call interactively with a prefix argument to go to the last selected
+window config slot in the current workspace."
+
+  (interactive (unless current-prefix-arg
+                 (list :ws (read-from-minibuffer
+                            "Workspace to switch to (blank for current): "
+                            nil nil t nil (format "%s" (winds-get-cur-ws)))
+                       :cfg (read-from-minibuffer
+                             "Window config slot to switch to (blank for last selected): "
+                             nil nil t nil "nil"))))
 
   (let ((ws (winds--get-or-create-ws wsid)))
     ;; Return to last selected cfg for selected ws
