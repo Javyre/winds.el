@@ -186,12 +186,20 @@ Set to `nil` to not run any initialization"
 
 (defun winds--get-wsids ()
   "Get the current set of workspace ids."
-  (cl-loop for k being the hash-keys of winds-*workspaces* collect k))
+  (cl-loop for k being the hash-keys of winds-*workspaces*
+           collect k into keys
+           return (progn (cl-pushnew (winds-get-cur-ws) keys)
+                         keys)))
 
 (cl-defun winds--get-cfgids (&optional (wsid (winds-get-cur-ws)))
   "Get the current set of window config ids."
   (let ((ws (winds--get-or-create-ws wsid)))
-    (cl-loop for k being the hash-keys of (winds-workspace-cfgs ws) collect k)))
+    (cl-loop for k being the hash-keys of (winds-workspace-cfgs ws)
+             collect k into keys
+             return (progn
+                      (when (eql wsid (winds-get-cur-ws))
+                        (cl-pushnew (winds-get-cur-cfg) keys))
+                      keys))))
 
 ;; Public
 
