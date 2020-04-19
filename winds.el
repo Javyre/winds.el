@@ -118,22 +118,28 @@
 
 (defcustom winds-default-ws 1
   "Defalut selected workspace."
+  :type 'integer
   :group 'winds)
 (defcustom winds-default-cfg 1
   "Default selected window config slot."
+  :type 'integer
   :group 'winds)
 
 (defcustom winds-display-status-msg t
   "Whether to display a status message upon switching window config."
-  :type 'bool :group 'winds)
+  :type 'boolean
+  :group 'winds)
 
-(defcustom winds-init-cfg
-  (lambda (w c)
-    (delete-other-windows)
-    (switch-to-buffer "*scratch*"))
-  "The function called to create a new layout upon opening a new window configuration slot
+(defcustom winds-init-cfg-hook
+  (list (lambda (w c)
+          (ignore w c)
+          (delete-other-windows)
+          (switch-to-buffer "*scratch*")))
+  "The hook called to create a new layout upon opening a new window configuration slot
 
+The hook receives two parameters: the window-id and cfg-id of the new slot
 Set to `nil` to not run any initialization"
+  :type 'hook
   :group 'winds)
 
 
@@ -248,8 +254,7 @@ Set to `nil` to not run any initialization"
           (window-state-put window-config (frame-root-window) 'safe)
 
         ;; Init new win config
-        (when winds-init-cfg
-          (funcall winds-init-cfg wsid cfgid))
+        (run-hook-with-args 'winds-init-cfg-hook wsid cfgid)
         (winds-save-cfg :ws wsid :cfg cfgid))))
   (when winds-display-status-msg
     (winds-display-status-msg)))
