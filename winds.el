@@ -8,7 +8,7 @@
 ;; Keywords: convenience
 ;; Version: 1.0.0
 ;; Homepage: https://github.com/Javyre/winds.el
-;; Package-Requires: ((emacs "24.3"))
+;; Package-Requires: ((emacs "25.1"))
 
 ;; This file is not part of GNU Emacs.
 
@@ -82,6 +82,8 @@
 ;;   (global-set-key (kbd "C-\\")   'winds-cfg-close)
 ;;   #+END_SRC
 ;;
+;; * Options
+;;
 ;;   To disable the status message when changing window configs:
 ;;
 ;;   #+BEGIN_SRC elisp
@@ -102,6 +104,55 @@
 ;;             (:eval (format "%s|%s "
 ;;                            (winds-get-cur-ws)
 ;;                            (winds-get-cur-cfg)))))
+;;   #+END_SRC
+;;
+;;   =winds.el= works with =desktop.el=! If you want to enable saving of
+;;   winds workspaces add this to your configuration:
+;;
+;;   #+BEGIN_SRC elisp
+;;     (with-eval-after-load 'desktop (winds-enable-desktop-save))
+;;   #+END_SRC
+;;
+;; * My config
+;;
+;;   As an example, here is how I use this package:
+;;
+;;   #+BEGIN_SRC elisp
+;;     (use-package winds
+;;       :straight (winds :type git :host github :repo "Javyre/winds.el")
+;;       :custom
+;;       (winds-default-ws 1)
+;;       (winds-default-cfg 1)
+;;       :config
+;;       (with-eval-after-load 'desktop (winds-enable-desktop-save))
+;;       :general
+;;       (:prefix "SPC w"
+;;         "w n" 'winds-next
+;;         "w p" 'winds-prev
+;;         "w c" 'winds-close
+;;         "n" 'winds-cfg-next
+;;         "p" 'winds-cfg-prev
+;;         "c" 'winds-cfg-close
+;;         "w 0" (lambda () (interactive) (winds-goto :ws 10))
+;;         "w 1" (lambda () (interactive) (winds-goto :ws 1))
+;;         "w 2" (lambda () (interactive) (winds-goto :ws 2))
+;;         "w 3" (lambda () (interactive) (winds-goto :ws 3))
+;;         "w 4" (lambda () (interactive) (winds-goto :ws 4))
+;;         "w 5" (lambda () (interactive) (winds-goto :ws 5))
+;;         "w 6" (lambda () (interactive) (winds-goto :ws 6))
+;;         "w 7" (lambda () (interactive) (winds-goto :ws 7))
+;;         "w 8" (lambda () (interactive) (winds-goto :ws 8))
+;;         "w 9" (lambda () (interactive) (winds-goto :ws 9))
+;;         "0" (lambda () (interactive) (winds-goto :cfg 10))
+;;         "1" (lambda () (interactive) (winds-goto :cfg 1))
+;;         "2" (lambda () (interactive) (winds-goto :cfg 2))
+;;         "3" (lambda () (interactive) (winds-goto :cfg 3))
+;;         "4" (lambda () (interactive) (winds-goto :cfg 4))
+;;         "5" (lambda () (interactive) (winds-goto :cfg 5))
+;;         "6" (lambda () (interactive) (winds-goto :cfg 6))
+;;         "7" (lambda () (interactive) (winds-goto :cfg 7))
+;;         "8" (lambda () (interactive) (winds-goto :cfg 8))
+;;         "9" (lambda () (interactive) (winds-goto :cfg 9))))
 ;;   #+END_SRC
 
 ;;; Change Log:
@@ -205,6 +256,21 @@ Set to `nil` to not run any initialization"
                               keys))))
 
 ;; Public
+
+(defun winds-enable-desktop-save (&optional disable)
+  "Enable or disable (if DISABLE) saving of winds workspaces with desktop.el.
+
+NOTE: This function loads feature `desktop' if not loaded already.
+      You should probably put this in a `with-eval-after-load' clause."
+  (interactive)
+
+  (require 'desktop)
+  (if disable
+      (setq desktop-globals-to-save
+            (cl-loop for s in desktop-globals-to-save
+                     unless (eq s 'winds-*workspaces*)
+                     collect s))
+    (add-to-list 'desktop-globals-to-save 'winds-*workspaces*)))
 
 (defun winds-display-status-msg ()
   "Display a status message in the echo area with the current ws id and cfg id."
