@@ -145,10 +145,10 @@ Set to `nil` to not run any initialization"
 
 ;; Vars/Decls
 
-(cl-defstruct winds-workspace
-  cfgs      ;; window config slots hashtable
+(cl-defstruct (winds-workspace (:type vector) :named)
+  cfgs      ;; window config slots alist
   last-sel) ;; last selected slot id
-(defvar winds-*workspaces* (make-hash-table :test 'eql))
+(defvar winds-*workspaces* '())
 
 (defun winds-get-cur-ws (&optional frame)
   "Get the currently selected workspace id in FRAME or the current frame."
@@ -168,13 +168,13 @@ Set to `nil` to not run any initialization"
 
 (defun winds--get-or-create-ws (wsid)
   "Get or create workspace in slot WSID."
-  (let ((ws (gethash wsid winds-*workspaces*)))
+  (let ((ws (alist-get wsid winds-*workspaces*)))
     (unless ws
-      (setf ws (make-winds-workspace :cfgs (make-hash-table :test 'eql)
-                                     :last-sel (if (eql wsid (winds-get-cur-ws))
+      (setf ws (make-winds-workspace :cfgs '()
+                                     :last-sel (if (eq wsid (winds-get-cur-ws))
                                                    (winds-get-cur-cfg)
                                                  winds-default-cfg)))
-      (puthash wsid ws winds-*workspaces*))
+      (setf (alist-get wsid winds-*workspaces*) ws))
     ws))
 
 (defun winds--save-cfg-if-empty ()
@@ -183,13 +183,13 @@ Set to `nil` to not run any initialization"
          (cfgid  (winds-get-cur-cfg))
          (ws    (winds--get-or-create-ws wsid))
          (cfgs  (winds-workspace-cfgs ws)))
-    (unless (gethash cfgid cfgs)
+    (unless (alist-get cfgid cfgs)
       (winds-save-cfg :ws wsid :cfg cfgid))))
 
 (defun winds--get-wsids ()
   "Get the current set of workspace ids."
-  (cl-loop for k being the hash-keys of winds-*workspaces*
-           collect k into keys
+  (cl-loop for assoc in winds-*workspaces*
+           collect (car assoc) into keys
            finally return (progn
                             (cl-pushnew (winds-get-cur-ws) keys)
                             keys)))
@@ -197,10 +197,10 @@ Set to `nil` to not run any initialization"
 (cl-defun winds--get-cfgids (&optional (wsid (winds-get-cur-ws)))
   "Get the current set of window config ids."
   (let ((ws (winds--get-or-create-ws wsid)))
-    (cl-loop for k being the hash-keys of (winds-workspace-cfgs ws)
-             collect k into keys
+    (cl-loop for assoc in (winds-workspace-cfgs ws)
+             collect (car assoc) into keys
              finally return (progn
-                              (when (eql wsid (winds-get-cur-ws))
+                              (when (eq wsid (winds-get-cur-ws))
                                 (cl-pushnew (winds-get-cur-cfg) keys))
                               keys))))
 
@@ -217,12 +217,12 @@ Set to `nil` to not run any initialization"
          (sel-face   `(:background ,bg :foreground ,sel-fg))
          (unsel-face `(:background ,bg :foreground ,unsel-fg))
          (msg-left (mapcar
-                    (lambda (id) (if (eql id (winds-get-cur-cfg))
+                    (lambda (id) (if (eq id (winds-get-cur-cfg))
                                      (propertize (format "%s " id) 'face sel-face)
                                    (propertize (format "%s " id) 'face unsel-face)))
                     cfgids))
          (msg-right (mapcar
-                     (lambda (id) (if (eql id (winds-get-cur-ws))
+                     (lambda (id) (if (eq id (winds-get-cur-ws))
                                       (propertize (format " %s" id) 'face sel-face)
                                     (propertize (format " %s" id) 'face unsel-face)))
                      wsids))
@@ -253,10 +253,10 @@ Call interactively with a prefix argument to save to the current window config s
                              "Window config slot to save to (blank for current): "
                              nil nil t nil (format "%s" (winds-get-cur-cfg))))))
 
-  (let* ((ws   (winds--get-or-create-ws wsid))
-         (cfgs (winds-workspace-cfgs ws)))
-    (setf (winds-workspace-last-sel ws) cfgid)
-    (puthash cfgid (window-state-get nil t) cfgs)))
+  (let ((ws (winds--get-or-create-ws wsid)))
+      (setf (winds-workspace-last-sel ws) cfgid)
+      (setf (alist-get cfgid (winds-workspace-cfgs ws))
+            (window-state-get nil t))))
 
 ;;;###autoload
 (cl-defun winds-goto (&key ((:ws wsid) (winds-get-cur-ws))
@@ -288,7 +288,7 @@ window config slot in the current workspace."
     (winds--set-cur-cfg nil cfgid)
 
     (let* ((cfgs          (winds-workspace-cfgs ws))
-           (window-config (gethash cfgid cfgs)))
+           (window-config (alist-get cfgid cfgs)))
       (if window-config
           ;; Goto
           (window-state-put window-config (frame-root-window) 'safe)
@@ -361,9 +361,9 @@ Close workspace slot WSID and switch to nearest slot or `winds-default-ws'
   (let ((wsids (sort (winds--get-wsids) #'<)))
     (if (memql wsid wsids)
         (progn
-          (remhash wsid winds-*workspaces*)
-          (when (eql wsid (winds-get-cur-ws))
-            (let ((goto (car (cl-remove-if (lambda (e) (eql wsid e)) wsids))))
+          (setf (alist-get wsid winds-*workspaces* nil 'remove) nil)
+          (when (eq wsid (winds-get-cur-ws))
+            (let ((goto (car (cl-remove-if (lambda (e) (eq wsid e)) wsids))))
               (winds-goto :ws (or goto winds-default-ws) :do-save nil))))
       (message "Workspace %s does not exist!" wsid))))
 
@@ -382,9 +382,9 @@ Close window config slot CFGID and switch to nearest slot or `winds-default-cfg'
         (ws (winds--get-or-create-ws (winds-get-cur-ws))))
     (if (memql cfgid cfgids)
         (progn
-          (remhash cfgid (winds-workspace-cfgs ws))
-          (when (eql cfgid (winds-get-cur-cfg))
-            (let ((goto (car (cl-remove-if (lambda (e) (eql cfgid e)) cfgids))))
+          (setf (alist-get cfgid (winds-workspace-cfgs ws) nil 'remove) nil)
+          (when (eq cfgid (winds-get-cur-cfg))
+            (let ((goto (car (cl-remove-if (lambda (e) (eq cfgid e)) cfgids))))
               (winds-goto :cfg (or goto winds-default-cfg) :do-save nil))))
       (message "Window config %s does not exist!" cfgid))))
 
