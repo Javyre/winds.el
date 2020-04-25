@@ -257,6 +257,8 @@ Set to `nil` to not run any initialization"
 
 ;; Public
 
+;; defvar to silence compiler warning
+(eval-when-compile (defvar desktop-globals-to-save))
 (defun winds-enable-desktop-save (&optional disable)
   "Enable or disable (if DISABLE) saving of winds workspaces with desktop.el.
 
