@@ -280,19 +280,19 @@ NOTE: This function loads feature `desktop' if not loaded already.
          (sel-face   `(:background ,bg :foreground ,sel-fg))
          (unsel-face `(:background ,bg :foreground ,unsel-fg))
          (msg-left (mapcar
-                    (lambda (id) (if (eq id (winds-get-cur-cfg))
+                    (lambda (id) (if (eq id (winds-get-cur-ws))
                                      (propertize (format "%s " id) 'face sel-face)
                                    (propertize (format "%s " id) 'face unsel-face)))
-                    cfgids))
+                    wsids))
          (msg-right (mapcar
-                     (lambda (id) (if (eq id (winds-get-cur-ws))
+                     (lambda (id) (if (eq id (winds-get-cur-cfg))
                                       (propertize (format " %s" id) 'face sel-face)
                                     (propertize (format " %s" id) 'face unsel-face)))
-                     wsids))
+                     cfgids))
          (msg-left  (cl-reduce #'concat msg-left))
          (msg-right (cl-reduce #'concat msg-right))
-         (msg-left  (concat (propertize "C " 'face unsel-face) msg-left))
-         (msg-right (concat msg-right (propertize " W" 'face unsel-face))))
+         (msg-left  (concat (propertize "W " 'face unsel-face) msg-left))
+         (msg-right (concat msg-right (propertize " C" 'face unsel-face))))
 
     ;; Don't spam *Messages*
     (let ((message-log-max nil))
