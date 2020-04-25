@@ -46,16 +46,11 @@
 ;;
 ;; * Install
 ;;
-;;   This package has not yet been submitted to Melpa.  I have no need
-;;   for it to be on Melpa as I use =straight.el= and I made this package
-;;   to scratch my own itch.
-;;
-;;   If anyone thinks this would be useful to them please let me know and
-;;   I'll be glad to submit it to Melpa.
+;;   This package is available on Melpa. Simply install it with your
+;;   favorite package manager:
 ;;
 ;;   #+BEGIN_SRC elisp
-;;   (use-package winds
-;;     :straight (winds :type git :host github :repo "Javyre/winds.el"))
+;;   (use-package winds :ensure t)
 ;;   #+END_SRC
 ;;
 ;; * Getting Started
@@ -119,7 +114,7 @@
 ;;
 ;;   #+BEGIN_SRC elisp
 ;;     (use-package winds
-;;       :straight (winds :type git :host github :repo "Javyre/winds.el")
+;;       :straight t
 ;;       :custom
 ;;       (winds-default-ws 1)
 ;;       (winds-default-cfg 1)
