@@ -125,9 +125,12 @@
 ;;         "w n" 'winds-next
 ;;         "w p" 'winds-prev
 ;;         "w c" 'winds-close
+;;         "w w TAB" 'winds-last
 ;;         "n" 'winds-cfg-next
 ;;         "p" 'winds-cfg-prev
 ;;         "c" 'winds-cfg-close
+;;         "w TAB" 'winds-cfg-last
+;;         "w o" 'winds-pos-last
 ;;         "w 0" (lambda () (interactive) (winds-goto :ws 10))
 ;;         "w 1" (lambda () (interactive) (winds-goto :ws 1))
 ;;         "w 2" (lambda () (interactive) (winds-goto :ws 2))
@@ -191,24 +194,70 @@ Set to `nil` to not run any initialization"
 
 ;; Vars/Decls
 
+(defmacro winds--alist-get (alist &rest path)
+  "Utility macro to get nested attributes in an ALIST by PATH."
+  (if (>= (length path) 2)
+      `(winds--alist-get (alist-get ,(car path) ,alist) ,@(rest path))
+    `(alist-get ,(car path) ,alist)))
+
+(defmacro winds--state-get (frame &rest path)
+  "Utility macro get winds FRAME state via PATH."
+  (if path
+      `(winds--alist-get (winds--state-get ,frame) ,@path)
+    `(frame-parameter ,frame 'winds--state)))
+
 (cl-defstruct (winds-workspace (:type vector) :named)
-  cfgs      ;; window config slots alist
-  last-sel) ;; last selected slot id
+  cfgs) ;; window config slots alist
+
 (defvar winds-*workspaces* '())
 
+;; cur ws/cfg
 (defun winds-get-cur-ws (&optional frame)
   "Get the currently selected workspace id in FRAME or the current frame."
-  (or (frame-parameter frame 'winds--cur-ws) winds-default-ws))
-(defun winds-get-cur-cfg (&optional frame)
-  "Get the currently selected window config slot id in FRAME or the current frame."
-  (or (frame-parameter frame 'winds--cur-cfg) winds-default-cfg))
+  (or (winds--state-get frame :cur-ws) winds-default-ws))
 
-(defun winds--set-cur-ws (frame value)
-  "Set the currently selected workspace id in FRAME or the current frame to VALUE."
-  (set-frame-parameter frame 'winds--cur-ws value))
-(defun winds--set-cur-cfg (frame value)
-  "Get the currently selected window config slot id in FRAME or the current frame to VALUE."
-  (set-frame-parameter frame 'winds--cur-cfg value))
+(defun winds-get-cur-cfg (&optional frame wsid)
+  "Get the currently selected window config slot id in FRAME in workspace WSID.
+
+FRAME defaults to current frame.
+WSID defaults to current workspace id."
+  (unless wsid (setf wsid (winds-get-cur-ws)))
+  (or (winds--state-get frame :workspaces wsid :cur-cfg)
+      winds-default-cfg))
+
+;; last ws/cfg
+(defun winds-get-last-cfg (&optional frame wsid)
+  "Get the previously selected window config slot in FRAME in workspace WSID.
+
+FRAME defaults to current frame.
+WSID defaults to current workspace id.
+Returns nil if no last-cfg found."
+  (unless wsid (setf wsid (winds-get-cur-ws frame)))
+  (winds--state-get frame :workspaces wsid :last-cfg))
+
+(defun winds-get-last-ws (&optional frame)
+  "Get the previously selected workspace slot in FRAME.
+
+FRAME defaults to current frame.
+Returns nil if no last-cfg found."
+  (winds--state-get frame :last-ws))
+
+(defun winds-get-last-pos (&optional frame)
+  "Get the previously selected (ws cfg) pair in  FRAME.
+
+FRAME defaults to current frame.
+Returns nil if no last-cfg found."
+  (winds--state-get frame :last-pos))
+
+
+(defun winds-get-last-or-cur-cfg (&optional frame wsid)
+  "Get the previously selected window config slot in FRAME in workspace WSID.
+
+FRAME defaults to current frame.
+WSID defaults to current workspace id.
+Returns `(winds-get-cur-cfg)' if no last-cfg found."
+  (or (winds-get-last-cfg frame wsid)
+      (winds-get-cur-cfg frame wsid)))
 
 ;; Private
 
@@ -216,10 +265,7 @@ Set to `nil` to not run any initialization"
   "Get or create workspace in slot WSID."
   (let ((ws (alist-get wsid winds-*workspaces*)))
     (unless ws
-      (setf ws (make-winds-workspace :cfgs '()
-                                     :last-sel (if (eq wsid (winds-get-cur-ws))
-                                                   (winds-get-cur-cfg)
-                                                 winds-default-cfg)))
+      (setf ws (make-winds-workspace :cfgs '()))
       (setf (alist-get wsid winds-*workspaces*) ws))
     ws))
 
@@ -300,8 +346,11 @@ NOTE: This function loads feature `desktop' if not loaded already.
 
 ;;;###autoload
 (cl-defun winds-save-cfg (&key ((:ws  wsid)  (winds-get-cur-ws))
-                               ((:cfg cfgid) (winds-get-cur-cfg)))
-  "Save current window configuration into workspace ws, config cfg.
+                               ((:cfg cfgid) nil))
+  "Save current window configuration into workspace WS, config CFG.
+
+WS  defaults to current workspace
+CFG defaults to current cfg if WS is current or to `winds-default-cfg'
 
 Call interactively to be prompted for a workspace and window config to save to.
 
@@ -315,11 +364,14 @@ Call interactively with a prefix argument to save to the current window config s
                        :cfg (read-from-minibuffer
                              "Window config slot to save to (blank for current): "
                              nil nil t nil (format "%s" (winds-get-cur-cfg))))))
+  (unless cfgid (setf cfgid
+                      (if (eq wsid (winds-get-cur-ws))
+                          (winds-get-cur-cfg)
+                        winds-default-cfg)))
 
   (let ((ws (winds--get-or-create-ws wsid)))
-      (setf (winds-workspace-last-sel ws) cfgid)
-      (setf (alist-get cfgid (winds-workspace-cfgs ws))
-            (window-state-get nil t))))
+    (setf (alist-get cfgid (winds-workspace-cfgs ws))
+          (window-state-get nil t))))
 
 ;;;###autoload
 (cl-defun winds-goto (&key ((:ws wsid) (winds-get-cur-ws))
@@ -340,33 +392,64 @@ window config slot in the current workspace."
                              "Window config slot to switch to (blank for last selected): "
                              nil nil t nil "nil"))))
 
-  (let ((ws (winds--get-or-create-ws wsid)))
-    ;; Return to last selected cfg for selected ws
-    (unless cfgid (setf cfgid (winds-workspace-last-sel ws)))
+  ;; Return to last selected cfg for selected ws
+  (unless cfgid (setf cfgid (winds-get-last-or-cur-cfg nil wsid)))
 
-    ;; Save current cfg before leaving
-    (when do-save (winds-save-cfg))
+  ;; Save current cfg before leaving
+  (when do-save (winds-save-cfg))
 
-    (winds--set-cur-ws nil wsid)
-    (winds--set-cur-cfg nil cfgid)
+  (let ((cur-ws  (winds-get-cur-ws))
+        (cur-cfg (winds-get-cur-cfg)))
+    (unless (eq cur-ws wsid)
+      (setf (winds--state-get nil :last-ws) cur-ws))
+    (setf (winds--state-get nil :workspaces cur-ws :last-cfg) cur-cfg)
+    (setf (winds--state-get nil :last-pos) (cons cur-ws cur-cfg)))
 
-    (let* ((cfgs          (winds-workspace-cfgs ws))
-           (window-config (alist-get cfgid cfgs)))
-      (if window-config
-          ;; Goto
-          (window-state-put window-config (frame-root-window) 'safe)
+  (setf (winds--state-get nil :cur-ws) wsid)
+  (setf (winds--state-get nil :workspaces wsid :cur-cfg) cfgid)
 
-        ;; Init new win config
-        (run-hook-with-args 'winds-init-cfg-hook wsid cfgid)
-        (winds-save-cfg :ws wsid :cfg cfgid))))
+  (let* ((ws (winds--get-or-create-ws wsid))
+         (cfgs          (winds-workspace-cfgs ws))
+         (window-config (alist-get cfgid cfgs)))
+    (if window-config
+        ;; Goto
+        (window-state-put window-config (frame-root-window) 'safe)
+
+      ;; Init new win config
+      (run-hook-with-args 'winds-init-cfg-hook wsid cfgid)
+      (winds-save-cfg :ws wsid :cfg cfgid)))
+
   (when winds-display-status-msg
     (winds-display-status-msg)))
+
+;;;###autoload
+(defun winds-last ()
+  "Go to the previously selected workspace slot."
+  (interactive)
+  (winds-goto :ws (winds-get-last-ws)))
+
+;;;###autoload
+(defun winds-cfg-last ()
+  "Go to the previously selected window config slot in the current workspace."
+  (interactive)
+  (winds-goto :cfg (winds-get-last-cfg)))
+
+;;;###autoload
+(defun winds-pos-last ()
+  "Go to the previously selected window config slot and workspace."
+  (interactive)
+  (let ((pos (winds-get-last-pos)))
+    (winds-goto :ws (car pos)
+                :cfg (cdr pos))))
 
 ;;;###autoload
 (defun winds-next ()
   "Go to next workspace slot."
   (interactive)
+
+  ;; In order to include the current ws in the sorted list
   (winds--save-cfg-if-empty)
+
   (let* ((wsids    (sort (winds--get-wsids) #'<))
          (next-pos (1+ (cl-position (winds-get-cur-ws) wsids))))
     (when (= next-pos (length wsids))
@@ -378,7 +461,10 @@ window config slot in the current workspace."
 (defun winds-prev ()
   "Go to previous workspace slot."
   (interactive)
+
+  ;; In order to include the current ws in the sorted list
   (winds--save-cfg-if-empty)
+
   (let* ((wsids    (sort (winds--get-wsids) #'>))
          (next-pos (1+ (cl-position (winds-get-cur-ws) wsids))))
     (when (= next-pos (length wsids))
@@ -390,7 +476,10 @@ window config slot in the current workspace."
 (defun winds-cfg-next ()
   "Go to next window config slot."
   (interactive)
+
+  ;; In order to include the current cfg in the sorted list
   (winds--save-cfg-if-empty)
+
   (let* ((cfgids   (sort (winds--get-cfgids) #'<))
          (next-pos (1+ (cl-position (winds-get-cur-cfg) cfgids))))
     (when (= next-pos (length cfgids))
@@ -402,7 +491,10 @@ window config slot in the current workspace."
 (defun winds-cfg-prev ()
   "Go to previous window config slot."
   (interactive)
+
+  ;; In order to include the current cfg in the sorted list
   (winds--save-cfg-if-empty)
+
   (let* ((cfgids   (sort (winds--get-cfgids) #'>))
          (next-pos (1+ (cl-position (winds-get-cur-cfg) cfgids))))
     (when (= next-pos (length cfgids))

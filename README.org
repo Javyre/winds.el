@@ -98,9 +98,12 @@ want and I want to keep only one fullscreen emacs frame open.
         "w n" 'winds-next
         "w p" 'winds-prev
         "w c" 'winds-close
+        "w w TAB" 'winds-last
         "n" 'winds-cfg-next
         "p" 'winds-cfg-prev
         "c" 'winds-cfg-close
+        "w TAB" 'winds-cfg-last
+        "w o" 'winds-pos-last
         "w 0" (lambda () (interactive) (winds-goto :ws 10))
         "w 1" (lambda () (interactive) (winds-goto :ws 1))
         "w 2" (lambda () (interactive) (winds-goto :ws 2))
