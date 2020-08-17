@@ -197,7 +197,7 @@ Set to `nil` to not run any initialization"
 (defmacro winds--alist-get (alist &rest path)
   "Utility macro to get nested attributes in an ALIST by PATH."
   (if (>= (length path) 2)
-      `(winds--alist-get (alist-get ,(car path) ,alist) ,@(rest path))
+      `(winds--alist-get (alist-get ,(car path) ,alist) ,@(cdr path))
     `(alist-get ,(car path) ,alist)))
 
 (defmacro winds--state-get (frame &rest path)
