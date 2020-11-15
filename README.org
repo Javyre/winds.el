@@ -1,3 +1,5 @@
+[[https://melpa.org/#/winds][file:https://melpa.org/packages/winds-badge.svg]]
+
 #+TITLE: Winds.el
 #+AUTHOR: Javier A. Pollak
 
