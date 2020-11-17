@@ -5,9 +5,10 @@
 
 Window configuration switcher grouped by workspaces
 
-winds.el is very similar to [[https://github.com/wasamasa/eyebrowse/][eyebrowse]] and other window config
-switchers, but allows for having multiple "workspaces" grouping sets
-of window config slots.
+winds.el is very similar to [[https://github.com/wasamasa/eyebrowse/][eyebrowse]], =tab-bar-mode=, and other window
+config switchers, but allows for having multiple "workspaces" grouping
+sets of window config slots. It also saves winner-like history for
+each window config slot independently.
 
 This small package was started because I tend to have multiple
 unrelated projects open at once, and need to keep them open. I do
@@ -83,6 +84,15 @@ want and I want to keep only one fullscreen emacs frame open.
     (with-eval-after-load 'desktop (winds-enable-desktop-save))
   #+END_SRC
 
+  =winds.el= saves winner-like history for each window config slot!
+  To enable history tracking, add this:
+
+  #+BEGIN_SRC elisp
+    (winds-history-mode)
+    (global-set-key (kbd "C-c <left>")  'winds-history-undo)
+    (global-set-key (kbd "C-c <right>")  'winds-history-redo)
+  #+END_SRC
+
 * My config
 
   As an example, here is how I use this package:
@@ -93,10 +103,16 @@ want and I want to keep only one fullscreen emacs frame open.
       :custom
       (winds-default-ws 1)
       (winds-default-cfg 1)
-      :config
+      :init
+      ;; Avoid lazy loading so that history is saved
+      ;; from the very start of session
+      (winds-mode)
+      (winds-history-mode)
       (with-eval-after-load 'desktop (winds-enable-desktop-save))
       :general
       (:prefix "SPC w"
+        "[" 'winds-history-undo
+        "]" 'winds-history-redo
         "w n" 'winds-next
         "w p" 'winds-prev
         "w c" 'winds-close
@@ -125,5 +141,15 @@ want and I want to keep only one fullscreen emacs frame open.
         "6" (lambda () (interactive) (winds-goto :cfg 6))
         "7" (lambda () (interactive) (winds-goto :cfg 7))
         "8" (lambda () (interactive) (winds-goto :cfg 8))
-        "9" (lambda () (interactive) (winds-goto :cfg 9))))
+        "9" (lambda () (interactive) (winds-goto :cfg 9)))
+      ("M-0" (lambda () (interactive) (winds-goto :cfg 10))
+       "M-1" (lambda () (interactive) (winds-goto :cfg 1))
+       "M-2" (lambda () (interactive) (winds-goto :cfg 2))
+       "M-3" (lambda () (interactive) (winds-goto :cfg 3))
+       "M-4" (lambda () (interactive) (winds-goto :cfg 4))
+       "M-5" (lambda () (interactive) (winds-goto :cfg 5))
+       "M-6" (lambda () (interactive) (winds-goto :cfg 6))
+       "M-7" (lambda () (interactive) (winds-goto :cfg 7))
+       "M-8" (lambda () (interactive) (winds-goto :cfg 8))
+       "M-9" (lambda () (interactive) (winds-goto :cfg 9))))
   #+END_SRC

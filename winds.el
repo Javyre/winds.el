@@ -6,7 +6,7 @@
 ;; Maintainer: Javier A. Pollak <javi.po.123@gmail.com>
 ;; Created: 17 Apr 2020
 ;; Keywords: convenience
-;; Version: 1.0.0
+;; Version: 1.1.0
 ;; Homepage: https://github.com/Javyre/winds.el
 ;; Package-Requires: ((emacs "25.1"))
 
@@ -28,16 +28,20 @@
 
 ;;; Commentary:
 ;;
+;; #+TITLE: Winds.el
+;; #+AUTHOR: Javier A. Pollak
+;;
 ;; Window configuration switcher grouped by workspaces
 ;;
-;; winds.el is very similar to [[https://github.com/wasamasa/eyebrowse/][eyebrowse]] and other window config
-;; switchers, but allows for having multiple "workspaces" grouping sets
-;; of window config slots.
+;; winds.el is very similar to [[https://github.com/wasamasa/eyebrowse/][eyebrowse]], =tab-bar-mode=, and other window
+;; config switchers, but allows for having multiple "workspaces" grouping
+;; sets of window config slots. It also saves winner-like history for
+;; each window config slot independently.
 ;;
 ;; This small package was started because I tend to have multiple
-;; unrelated projects open at once, and need to keep them open.  I do
+;; unrelated projects open at once, and need to keep them open. I do
 ;; not want to cycle through unrelated window configs to get to what I
-;; want and I want to keep only one fullscreen Emacs frame open.
+;; want and I want to keep only one fullscreen emacs frame open.
 ;;
 ;; (This package has basic support for multiple frames)
 ;;
@@ -108,6 +112,15 @@
 ;;     (with-eval-after-load 'desktop (winds-enable-desktop-save))
 ;;   #+END_SRC
 ;;
+;;   =winds.el= saves winner-like history for each window config slot!
+;;   To enable history tracking, add this:
+;;
+;;   #+BEGIN_SRC elisp
+;;     (winds-history-mode)
+;;     (global-set-key (kbd "C-c <left>")  'winds-history-undo)
+;;     (global-set-key (kbd "C-c <right>")  'winds-history-redo)
+;;   #+END_SRC
+;;
 ;; * My config
 ;;
 ;;   As an example, here is how I use this package:
@@ -118,10 +131,16 @@
 ;;       :custom
 ;;       (winds-default-ws 1)
 ;;       (winds-default-cfg 1)
-;;       :config
+;;       :init
+;;       ;; Avoid lazy loading so that history is saved
+;;       ;; from the very start of session
+;;       (winds-mode)
+;;       (winds-history-mode)
 ;;       (with-eval-after-load 'desktop (winds-enable-desktop-save))
 ;;       :general
 ;;       (:prefix "SPC w"
+;;         "[" 'winds-history-undo
+;;         "]" 'winds-history-redo
 ;;         "w n" 'winds-next
 ;;         "w p" 'winds-prev
 ;;         "w c" 'winds-close
@@ -150,13 +169,23 @@
 ;;         "6" (lambda () (interactive) (winds-goto :cfg 6))
 ;;         "7" (lambda () (interactive) (winds-goto :cfg 7))
 ;;         "8" (lambda () (interactive) (winds-goto :cfg 8))
-;;         "9" (lambda () (interactive) (winds-goto :cfg 9))))
+;;         "9" (lambda () (interactive) (winds-goto :cfg 9)))
+;;       ("M-0" (lambda () (interactive) (winds-goto :cfg 10))
+;;        "M-1" (lambda () (interactive) (winds-goto :cfg 1))
+;;        "M-2" (lambda () (interactive) (winds-goto :cfg 2))
+;;        "M-3" (lambda () (interactive) (winds-goto :cfg 3))
+;;        "M-4" (lambda () (interactive) (winds-goto :cfg 4))
+;;        "M-5" (lambda () (interactive) (winds-goto :cfg 5))
+;;        "M-6" (lambda () (interactive) (winds-goto :cfg 6))
+;;        "M-7" (lambda () (interactive) (winds-goto :cfg 7))
+;;        "M-8" (lambda () (interactive) (winds-goto :cfg 8))
+;;        "M-9" (lambda () (interactive) (winds-goto :cfg 9))))
 ;;   #+END_SRC
 
-;;; Change Log:
 ;;; Code:
 
 (require 'cl-lib)
+(require 'ring)
 
 ;; Custom
 
@@ -191,8 +220,97 @@ Set to `nil` to not run any initialization"
   :type 'hook
   :group 'winds)
 
+(defcustom winds-history-size 200
+  "Size of window config history saved for each slot."
+  :type 'integer
+  :group 'winds)
+
 
 ;; Vars/Decls
+
+(cl-defstruct (winds--ring
+               (:constructor make-winds--ring
+                             (&optional (size 10)
+                                        &aux (rwnd (make-ring size))
+                                        (fwd (make-ring size)))))
+  "A rewindable ring."
+  rwnd
+  fwd)
+
+(defun winds--ring-clear-forward (ring)
+  "Clear the RING's fwd history."
+  (let ((fhist (winds--ring-fwd ring)))
+    (unless (ring-empty-p fhist)
+      (setf (winds--ring-fwd ring)
+            (make-ring (ring-size fhist))))))
+
+(defun winds--ring-insert (ring item &optional keep-forward)
+  "Insert ITEM into RING, clearing it's fwd history unless KEEP-FORWARD is non-nil."
+  (unless keep-forward (winds--ring-clear-forward ring))
+  (ring-insert (winds--ring-rwnd ring) item))
+
+(defun winds--ring-remove (ring index)
+  "Remove INDEX item from RING's rwnd hist."
+  (ring-remove (winds--ring-rwnd ring) index))
+
+(defun winds--ring-replace (ring item)
+  "Replace top element in RING's rwnd hist with ITEM."
+  (winds--ring-remove ring 0)
+  (winds--ring-insert ring item t))
+
+(defun winds--ring-replace-or-insert (ring item)
+  "Replace top element in RING's rwnd hist with ITEM or insert if it is completely empty."
+  (if (winds--ring-total-empty-p ring)
+      (winds--ring-insert ring item)
+    (winds--ring-replace ring item)))
+
+(defun winds--ring-rewind (ring)
+  "Rewind RING by one element."
+  (let ((r (winds--ring-rwnd ring))
+        (f (winds--ring-fwd ring)))
+    (if (= 1 (ring-length r))
+        (error "Rewind ring already at oldest element")
+      (let ((hd (ring-remove r 0)))
+        (ring-insert f hd)))))
+
+(defun winds--ring-forward (ring)
+  "Fast-forward RING by one element."
+  (let ((r (winds--ring-rwnd ring))
+        (f (winds--ring-fwd ring)))
+    (if (ring-empty-p f)
+        (error "Forward ring empty")
+      (let ((hd (ring-remove f 0)))
+        (ring-insert r hd)))))
+
+(defun winds--ring-ref (ring index)
+  "Retrieve element at INDEX from RING's rwnd history."
+  (ring-ref (winds--ring-rwnd ring) index))
+
+(defun winds--ring-fwd-empty-p (ring)
+  "Check whether the RING's fwd history is empty."
+  (ring-empty-p (winds--ring-fwd ring)))
+
+(defun winds--ring-rwnd-empty-p (ring)
+  "Check whether the RING's rwnd history is empty."
+  (ring-empty-p (winds--ring-rwnd ring)))
+
+(defun winds--ring-total-empty-p (ring)
+  "Check whether the RING's rwnd and fwd history are empty."
+  (and (winds--ring-rwnd-empty-p ring)
+       (winds--ring-fwd-empty-p ring)))
+
+(defun winds--ring-fwd-length (ring)
+  "Get the RING's fwd history length."
+  (ring-length (winds--ring-fwd ring)))
+
+(defun winds--ring-rwnd-length (ring)
+  "Get the RING's rwnd history length."
+  (ring-length (winds--ring-rwnd ring)))
+
+(defun winds--ring-total-length (ring)
+  "Get the RING's total history length."
+  (+ (winds--ring-fwd-length ring)
+     (winds--ring-rwnd-length ring)))
 
 (defmacro winds--alist-get (alist &rest path)
   "Utility macro to get nested attributes in an ALIST by PATH."
@@ -210,6 +328,8 @@ Set to `nil` to not run any initialization"
   cfgs) ;; window config slots alist
 
 (defvar winds-*workspaces* '())
+
+(defvar winds--*record-history* t)
 
 ;; cur ws/cfg
 (defun winds-get-cur-ws (&optional frame)
@@ -296,7 +416,66 @@ Returns `(winds-get-cur-cfg)' if no last-cfg found."
                                 (cl-pushnew (winds-get-cur-cfg) keys))
                               keys))))
 
+(defun winds--before-config-change ()
+  (when winds--*record-history*
+    (let ((minibuf-open-p (not (zerop (minibuffer-depth)))))
+      (setf (winds--state-get nil :maybe-old-minibuf-open-p) minibuf-open-p)
+      (unless minibuf-open-p
+        (setf (winds--state-get nil :maybe-old-window-config)
+              (window-state-get nil t))))))
+
+(defun winds--on-config-change ()
+  "Save the window config to the current active cfg slot's history ring."
+  (when (and winds--*record-history*
+             (winds--state-get nil :maybe-old-window-config)
+             (not (winds--state-get nil :maybe-old-minibuf-open-p)))
+    (let* ((wsid (winds-get-cur-ws))
+           (cfgid (winds-get-cur-cfg))
+           (ws (winds--get-or-create-ws wsid))
+           (cfgs (winds-workspace-cfgs ws))
+           (cfg (alist-get cfgid cfgs)))
+
+      (winds--ring-replace-or-insert
+       cfg (winds--state-get nil :maybe-old-window-config))
+      (setf (winds--state-get nil :maybe-old-window-config) nil)
+
+      ;;  create an empty ring slot to be filled by winds-save-cfg
+      (winds--ring-insert cfg nil)
+      (winds-save-cfg)
+      (winds--ring-clear-forward cfg)))
+  (setf winds--*record-history* t))
+
 ;; Public
+
+;;;###autoload
+(define-minor-mode winds-mode
+  "Toggle winds.el window config and workspace manager."
+  :global t
+  (when winds-mode
+    (winds-save-cfg))
+
+  (if winds-mode
+      (progn
+        (with-eval-after-load 'desktop
+          (winds-enable-desktop-save)))
+
+    (when (boundp 'desktop-save-mode)
+      (winds-enable-desktop-save t))))
+
+;;;###autoload
+(define-minor-mode winds-history-mode
+  "Toggle winds.el history mode.
+
+Saves history of window config changes within a window-config slot in
+winds.el. Use this global minor mode to replace `winner-mode` and have a
+more relevant history ring saved."
+  :global t
+  (if winds-history-mode
+      (progn
+        (add-hook 'pre-command-hook 'winds--before-config-change)
+        (add-hook 'window-configuration-change-hook 'winds--on-config-change))
+    (remove-hook 'pre-command-hook 'winds--before-config-change)
+    (remove-hook 'window-configuration-change-hook 'winds--on-config-change)))
 
 ;; defvar to silence compiler warning
 (eval-when-compile (defvar desktop-globals-to-save))
@@ -345,8 +524,8 @@ NOTE: This function loads feature `desktop' if not loaded already.
       (message "%s|%s" msg-left msg-right))))
 
 ;;;###autoload
-(cl-defun winds-save-cfg (&key ((:ws  wsid)  (winds-get-cur-ws))
-                               ((:cfg cfgid) nil))
+(cl-defun winds-save-cfg (&key ((:ws  wsid)   (winds-get-cur-ws))
+                               ((:cfg cfgid)  nil))
   "Save current window configuration into workspace WS, config CFG.
 
 WS  defaults to current workspace
@@ -370,8 +549,14 @@ Call interactively with a prefix argument to save to the current window config s
                         winds-default-cfg)))
 
   (let ((ws (winds--get-or-create-ws wsid)))
-    (setf (alist-get cfgid (winds-workspace-cfgs ws))
-          (window-state-get nil t))))
+    (if (alist-get cfgid (winds-workspace-cfgs ws))
+        (let ((cfg (alist-get cfgid (winds-workspace-cfgs ws))))
+          (winds--ring-replace-or-insert cfg (window-state-get nil t)))
+
+      (setf (alist-get cfgid (winds-workspace-cfgs ws))
+            (make-winds--ring winds-history-size))
+      (winds-save-cfg :ws wsid
+                      :cfg cfgid))))
 
 ;;;###autoload
 (cl-defun winds-goto (&key ((:ws wsid) (winds-get-cur-ws))
@@ -409,11 +594,13 @@ window config slot in the current workspace."
   (setf (winds--state-get nil :workspaces wsid :cur-cfg) cfgid)
 
   (let* ((ws (winds--get-or-create-ws wsid))
-         (cfgs          (winds-workspace-cfgs ws))
-         (window-config (alist-get cfgid cfgs)))
-    (if window-config
+         (cfgs (winds-workspace-cfgs ws))
+         (cfg  (alist-get cfgid cfgs)))
+    (if cfg
         ;; Goto
-        (window-state-put window-config (frame-root-window) 'safe)
+        (let ((window-config (winds--ring-ref cfg 0)))
+          (setq winds--*record-history* nil)
+          (window-state-put window-config (frame-root-window) 'safe))
 
       ;; Init new win config
       (run-hook-with-args 'winds-init-cfg-hook wsid cfgid)
@@ -542,6 +729,47 @@ Close window config slot CFGID and switch to nearest slot or `winds-default-cfg'
             (let ((goto (car (cl-remove-if (lambda (e) (eq cfgid e)) cfgids))))
               (winds-goto :cfg (or goto winds-default-cfg) :do-save nil))))
       (message "Window config %s does not exist!" cfgid))))
+
+;;;###autoload
+(defun winds-history-undo (&optional redo)
+  "Go back or forward in the window config history for the current slot.
+
+Go forward in the history if REDO is non-nil"
+  (interactive)
+
+  (let* ((wsid (winds-get-cur-ws))
+         (cfgid (winds-get-cur-cfg))
+         (ws (winds--get-or-create-ws wsid))
+         (cfgs (winds-workspace-cfgs ws))
+         (cfg (alist-get cfgid cfgs)))
+    (if redo
+        (if (winds--ring-fwd-empty-p cfg)
+            (user-error "Already at latest position in history: (%d/%d)"
+                        (winds--ring-rwnd-length cfg)
+                        (winds--ring-total-length cfg))
+          (winds--ring-forward cfg))
+      (if (= 1 (winds--ring-rwnd-length cfg))
+          (user-error "Already at first position in history: (%d/%d)"
+                      (winds--ring-rwnd-length cfg)
+                      (winds--ring-total-length cfg))
+        (winds--ring-rewind cfg)))
+
+    (setq winds--*record-history* nil)
+    (window-state-put (winds--ring-ref cfg 0)
+                      (frame-root-window)
+                      'safe)
+
+    (let ((pos (winds--ring-rwnd-length cfg))
+          (total (winds--ring-total-length cfg)))
+      (if redo
+          (message (format "Redo! (%d/%d)" pos total))
+        (message (format "Undo! (%d/%d)" pos total))))))
+
+;;;###autoload
+(defun winds-history-redo ()
+  "Go forward in the window config history for the current slot"
+  (interactive)
+  (winds-history-undo t))
 
 (provide 'winds)
 ;;; winds.el ends here
