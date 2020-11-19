@@ -6,7 +6,7 @@
 ;; Maintainer: Javier A. Pollak <javi.po.123@gmail.com>
 ;; Created: 17 Apr 2020
 ;; Keywords: convenience
-;; Version: 1.1.0
+;; Version: 1.1.1
 ;; Homepage: https://github.com/Javyre/winds.el
 ;; Package-Requires: ((emacs "25.1"))
 
@@ -603,6 +603,7 @@ window config slot in the current workspace."
           (window-state-put window-config (frame-root-window) 'safe))
 
       ;; Init new win config
+      (setq winds--*record-history* nil)
       (run-hook-with-args 'winds-init-cfg-hook wsid cfgid)
       (winds-save-cfg :ws wsid :cfg cfgid)))
 
