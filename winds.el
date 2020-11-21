@@ -329,6 +329,8 @@ Set to `nil` to not run any initialization"
 
 (defvar winds-*workspaces* '())
 
+;; NOTE: whenever we set `record-history` to nil we must consume
+;; the nil with a redisplay to trigger the on-config-change hook
 (defvar winds--*record-history* t)
 
 ;; cur ws/cfg
@@ -600,7 +602,8 @@ window config slot in the current workspace."
         ;; Goto
         (let ((window-config (winds--ring-ref cfg 0)))
           (setq winds--*record-history* nil)
-          (window-state-put window-config (frame-root-window) 'safe))
+          (window-state-put window-config (frame-root-window) 'safe)
+          (redisplay))
 
       ;; Init new win config
       (setq winds--*record-history* nil)
@@ -759,6 +762,7 @@ Go forward in the history if REDO is non-nil"
     (window-state-put (winds--ring-ref cfg 0)
                       (frame-root-window)
                       'safe)
+    (redisplay)
 
     (let ((pos (winds--ring-rwnd-length cfg))
           (total (winds--ring-total-length cfg)))
